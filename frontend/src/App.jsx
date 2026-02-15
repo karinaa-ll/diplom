@@ -21,7 +21,10 @@ function App() {
   const [hearts, setHearts] = useState(12); 
   const [showHint, setShowHint] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
-  const [isWrong, setIsWrong] = useState(false); // Состояние для красного бордюра
+  const [isWrong, setIsWrong] = useState(false); 
+  const [bamboo, setBamboo] = useState(0);
+  // ДОБАВЛЕНО: Состояние завершения урока
+  const [isLessonFinished, setIsLessonFinished] = useState(false);
 
   useEffect(() => {
     const savedData = localStorage.getItem('duo_coding_profile');
@@ -31,6 +34,7 @@ function App() {
       setXp(parsed.xp || 0);
       setUnlockedLevel(parsed.unlockedLevel || 1);
       checkStreak(parsed.streak || 0, parsed.lastLoginDate);
+      setBamboo(parsed.bamboo || 0);
     }
   }, []);
 
@@ -42,22 +46,20 @@ function App() {
 
     if (lastDate === today) {
       setStreak(currentStreak);
-      setLastLoginDate(today);
     } else if (lastDate === yesterdayStr) {
       setStreak(currentStreak + 1);
-      setLastLoginDate(today);
     } else {
       setStreak(1);
-      setLastLoginDate(today);
     }
+    setLastLoginDate(today);
   };
 
   useEffect(() => {
     if (user) {
-      const dataToSave = { user, xp, unlockedLevel, streak, lastLoginDate };
+      const dataToSave = { user, xp, unlockedLevel, streak, lastLoginDate, bamboo };
       localStorage.setItem('duo_coding_profile', JSON.stringify(dataToSave));
     }
-  }, [user, xp, unlockedLevel, streak, lastLoginDate]);
+  }, [user, xp, unlockedLevel, streak, lastLoginDate, bamboo]);
 
   const handleLogin = (name) => {
     const newUser = { name, avatar: name[0].toUpperCase() };
@@ -86,7 +88,9 @@ function App() {
   };
 
   const startLesson = (level) => {
+    setIsLessonFinished(false); // Сбрасываем флаг перед началом
     setScreen('lesson');
+    setProgress(0);
     fetchTask(currentLanguage, 0);
   };
 
@@ -114,15 +118,21 @@ function App() {
 
   const handleNext = () => {
     const nextProgress = progress + 12.5;
+    
     if (nextProgress >= 100) {
       setProgress(100);
       setTimeout(() => {
         setUnlockedLevel(prev => prev + 1);
         setXp(prev => prev + 50);
-        goToMap();
-      }, 500);
+        setBamboo(prev => prev + 5);
+        setIsLessonFinished(true); // Показываем экран успеха
+      }, 600);
     } else {
       setProgress(nextProgress);
+      setIsCorrect(false);
+      setIsWrong(false);
+      setFeedback("");
+      setUserInput(""); // Чистим поле ввода для нового задания
       fetchTask(currentLanguage, nextProgress);
     }
   };
@@ -134,6 +144,7 @@ function App() {
     setFeedback("");
     setIsCorrect(false);
     setIsWrong(false);
+    setIsLessonFinished(false);
     setScreen('map');
   };
 
@@ -154,11 +165,9 @@ function App() {
         setIsCorrect(true);
         setIsWrong(false);
     } else {
-      // Жизни не уходят в минус
       setHearts(prev => (prev > 0 ? prev - 1 : 0));
       setFeedback("❌ Ошибка! Попробуй еще раз.");
       setIsWrong(true);
-      // Убираем красную подсветку через секунду, чтобы можно было "мигнуть"
       setTimeout(() => setIsWrong(false), 1000);
     }
   };
@@ -200,6 +209,10 @@ function App() {
                         <div className="avatar-small">{user?.avatar}</div>
                         <span className="user-name-text">{user?.name}</span>
                         <div className="streak-badge">🔥 {streak}</div>
+                        <div className="bamboo-badge-dynamic">
+                          <img src="/bamboo.png" alt="bamboo" className="bamboo-img-icon-dynamic" />
+                          <span>{bamboo}</span>
+                        </div>
                       </div>
                       <div className="stat-badge">⭐ {xp} XP</div>
                     </header>
@@ -233,7 +246,13 @@ function App() {
                       <div className="stats-grid">
                         <div className="stat-box"><span>{xp}</span><p>Опыт</p></div>
                         <div className="stat-box"><span>{unlockedLevel}</span><p>Уровень</p></div>
-                        <div className="stat-box"><span>{streak}</span><p>Дней в ударном режиме</p></div>
+                        <div className="stat-box"><span>{streak}</span><p>Огонь</p></div>
+                        <div className="stat-box">
+                          <span>
+                            <img src="/bamboo.png" alt="bamboo" className="bamboo-img-icon" /> {bamboo}
+                          </span>
+                          <p>Бамбук</p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -263,57 +282,64 @@ function App() {
               </nav>
             </div>
           ) : (
+            /* ЭКРАН УРОКА / УСПЕХА */
             <div className="lesson-screen fade-in">
-              <header className="app-header">
-                <button className="back-home" onClick={goToMap}>✕</button>
-                <div className="progress-container">
-                  <div className="progress-bar" style={{ width: `${progress}%` }}></div>
-                </div>
-                <div className="stats-right">❤️ {hearts}</div>
-              </header>
-              <main className="content">
-                <div className="task-view">
-                  <h2 className="task-title">{task?.title}</h2>
-                  <p className="task-desc">{task?.description}</p>
-                  
-                  {/* КНОПКА ПОДСКАЗКИ И ПЛАШКА */}
-                  <div className="task-actions-top">
-                    <button className="hint-btn" onClick={() => setShowHint(!showHint)}>
-                      💡 {showHint ? "Скрыть подсказку" : "Нужна подсказка?"}
-                    </button>
-                    {showHint && <div className="hint-bubble fade-in">{task?.hint || "Попробуй внимательно прочитать задание!"}</div>}
-                  </div>
-
-                  <textarea
-                    className={`code-input ${isCorrect ? 'correct-border' : ''} ${isWrong ? 'wrong-border' : ''}`}
-                    value={userInput}
-                    onChange={(e) => {
-                        if(!isCorrect) {
-                            setUserInput(e.target.value);
-                            setIsWrong(false); // Убираем красный при вводе
-                        }
-                    }}
-                    placeholder="Напиши код здесь..."
-                    disabled={hearts <= 0 || isCorrect}
-                  />
-                  
-                  {feedback && <p className={`feedback-text ${isCorrect ? 'success' : 'error'}`}>{feedback}</p>}
-
-                  <div className="action-bar" style={{ textAlign: 'center', marginTop: '20px' }}>
-                    {isCorrect ? (
-                      <button className="check-btn next-step" onClick={handleNext}>ДАЛЕЕ</button>
-                    ) : (
-                      <button 
-                        className="check-btn" 
-                        onClick={checkAnswer} 
-                        disabled={userInput.length === 0 || hearts <= 0}
-                      >
-                        {hearts <= 0 ? "ЖИЗНИ ЗАКОНЧИЛИСЬ" : "ПРОВЕРИТЬ"}
-                      </button>
-                    )}
+              {isLessonFinished ? (
+                <div className="success-screen fade-in">
+                  <div className="sun-rays"></div>
+                  <div className="success-content">
+                    <div className="success-icon">
+                      <img src="/bamboo.png" alt="bamboo" className="bamboo-img-large" />
+                    </div>
+                    <h1>Отличная работа!</h1>
+                    <p>Ты на шаг ближе к мастерству {currentLanguage}</p>
+                    <div className="results-card">
+                      <div className="res-item"><span className="res-label">ОПЫТ</span><span className="res-value">+50 ⭐</span></div>
+                      <div className="res-item"><span className="res-label">БАМБУК</span><span className="res-value">+5 🎋</span></div>
+                    </div>
+                    <button className="check-btn next-step" onClick={goToMap}>ПРОДОЛЖИТЬ</button>
                   </div>
                 </div>
-              </main>
+              ) : (
+                <>
+                  <header className="app-header">
+                    <button className="back-home" onClick={goToMap}>✕</button>
+                    <div className="progress-container">
+                      <div className="progress-bar" style={{ width: `${progress}%` }}></div>
+                    </div>
+                    <div className="stats-right">❤️ {hearts}</div>
+                  </header>
+                  <main className="content">
+                    <div className="task-view">
+                      <h2 className="task-title">{task?.title}</h2>
+                      <p className="task-desc">{task?.description}</p>
+                      <div className="task-actions-top">
+                        <button className="hint-btn" onClick={() => setShowHint(!showHint)}>
+                          💡 {showHint ? "Скрыть подсказку" : "Нужна подсказка?"}
+                        </button>
+                        {showHint && <div className="hint-bubble fade-in">{task?.hint}</div>}
+                      </div>
+                      <textarea
+                        className={`code-input ${isCorrect ? 'correct-border' : ''} ${isWrong ? 'wrong-border' : ''}`}
+                        value={userInput}
+                        onChange={(e) => !isCorrect && setUserInput(e.target.value)}
+                        placeholder="Напиши код здесь..."
+                        disabled={hearts <= 0 || isCorrect}
+                      />
+                      {feedback && <p className={`feedback-text ${isCorrect ? 'success' : 'error'}`}>{feedback}</p>}
+                      <div className="action-bar">
+                        {isCorrect ? (
+                          <button className="check-btn next-step" onClick={handleNext}>ДАЛЕЕ</button>
+                        ) : (
+                          <button className="check-btn" onClick={checkAnswer} disabled={userInput.length === 0 || hearts <= 0}>
+                            {hearts <= 0 ? "ЖИЗНИ ЗАКОНЧИЛИСЬ" : "ПРОВЕРИТЬ"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </main>
+                </>
+              )}
             </div>
           )}
         </>
