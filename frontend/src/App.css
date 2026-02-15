@@ -9,6 +9,7 @@
   --duo-blue: #1cb0f6;
   --duo-yellow: #f7df1e;
   --duo-error: #ff4b4b;
+  --duo-orange: #ff9600;
 }
 
 #root {
@@ -18,7 +19,7 @@
   background-color: var(--bg-dark);
   width: 100%;
   color: var(--text-main);
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'Segoe UI', 'Din Round', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .App {
@@ -30,7 +31,62 @@
   position: relative;
 }
 
-/* --- ЭКРАН ВЫБОРА (WELCOME SCREEN) --- */
+/* --- АВТОРИЗАЦИЯ (MODAL) --- */
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 26, 31, 0.95);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  backdrop-filter: blur(8px);
+}
+
+.auth-card {
+  background: #233540;
+  padding: 40px;
+  border-radius: 28px;
+  border: 2px solid #37464f;
+  text-align: center;
+  width: 320px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+}
+
+.auth-icon { font-size: 3rem; margin-bottom: 10px; }
+.auth-card h2 { color: white; margin-bottom: 10px; font-size: 1.5rem; }
+.auth-card p { color: #afbbca; margin-bottom: 20px; font-size: 0.9rem; }
+
+.auth-card input {
+  width: 100%;
+  padding: 12px 15px;
+  border-radius: 12px;
+  border: 2px solid #37464f;
+  background: #111a1f;
+  color: white;
+  margin-bottom: 20px;
+  outline: none;
+  font-size: 1rem;
+}
+
+.auth-card input:focus { border-color: var(--duo-blue); }
+
+.auth-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--duo-blue);
+  color: white;
+  border: none;
+  border-radius: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #1899d6;
+  transition: 0.2s;
+}
+
+.auth-btn:active { transform: translateY(2px); box-shadow: none; }
+
+/* --- ЭКРАН ВЫБОРА ЯЗЫКА --- */
 .welcome-screen {
   display: flex;
   flex-direction: column;
@@ -72,7 +128,7 @@
 .python { border-color: #4b8bbe; }
 .js { border-color: var(--duo-yellow); }
 
-/* --- ЭКРАН КАРТЫ (MAP SCREEN) --- */
+/* --- КАРТА УРОВНЕЙ --- */
 .map-screen {
   padding: 20px 0;
   display: flex;
@@ -86,12 +142,11 @@
   width: 100%;
 }
 
-.back-btn-small {
-  background: none;
-  border: none;
-  color: var(--text-gray);
-  cursor: pointer;
-  font-weight: bold;
+.user-profile-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
   margin-bottom: 10px;
 }
 
@@ -113,9 +168,6 @@
   width: 100%;
 }
 
-.level-wrapper { width: 100%; display: flex; justify-content: center; }
-
-/* Зигзаг */
 .level-wrapper:nth-child(2n) { transform: translateX(50px); }
 .level-wrapper:nth-child(3n) { transform: translateX(-50px); }
 .level-wrapper:nth-child(4n) { transform: translateX(0); }
@@ -127,56 +179,27 @@
   border: none;
   font-size: 2.2rem;
   cursor: pointer;
-  position: relative;
   box-shadow: 0 8px 0 rgba(0,0,0,0.3);
   transition: all 0.2s;
   display: flex; 
   align-items: center; 
   justify-content: center;
-  /* Убираем синюю рамку при нажатии (как ты просил ранее) */
   outline: none !important;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Эффект нажатия ТОЛЬКО для активного уровня */
 .level-node:active:not(.locked):not(.completed) {
   transform: translateY(4px);
   box-shadow: 0 4px 0 rgba(0,0,0,0.3);
 }
 
-/* Закрытые уровни */
-.level-node.locked {
-  filter: grayscale(1);
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* ПРОЙДЕННЫЕ УРОВНИ: ч/б и без клика */
+.level-node.locked { filter: grayscale(1); opacity: 0.5; cursor: not-allowed; }
 .level-node.completed {
-  filter: grayscale(1);      /* Делаем аватарку чёрно-белой */
-  cursor: default;           /* Обычный курсор вместо пальца */
-  pointer-events: none;      /* Полностью отключаем клики и hover-эффекты */
-  opacity: 0.7;              /* Слегка приглушаем яркость */
-  box-shadow: 0 4px 0 rgba(0,0,0,0.2); /* Приплюснутая тень */
-}
-
-/* Подсказки (скрываем для пройденных, если хочешь) */
-.level-tooltip {
-  position: absolute; 
-  top: -35px;
-  background: white; 
-  color: black;
-  padding: 4px 10px; 
-  border-radius: 8px;
-  font-size: 0.8rem; 
-  font-weight: bold;
-  opacity: 0; 
-  transition: 0.2s;
+  filter: grayscale(1);
+  cursor: default;
   pointer-events: none;
-}
-
-.level-node:not(.completed):hover .level-tooltip { 
-  opacity: 1; 
+  opacity: 0.7;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.2);
 }
 
 /* --- ЭКРАН УРОКА --- */
@@ -185,7 +208,7 @@
   gap: 10px; width: 100%; margin-bottom: 25px;
 }
 
-.back-home { background: none; border: none; font-size: 1.6rem; cursor: pointer; }
+.back-home { background: none; border: none; font-size: 1.6rem; cursor: pointer; color: white; }
 
 .progress-container {
   flex-grow: 1; height: 18px;
@@ -197,67 +220,77 @@
   height: 100%; background: var(--duo-green);
   border-radius: 20px; transition: width 0.4s ease;
 }
-/* ЗАГОЛОВОК */
-.task-title, .task-desc {
-  text-align: center;
-  width: 100%;
-}
 
-/* Контейнер для подсказки */
+.task-title, .task-desc { text-align: left; width: 100%; margin-bottom: 10px; }
+
+/* Подсказки */
 .task-actions-top {
   display: flex;
   flex-direction: column;
-  align-items: flex-start; /* Выравнивает кнопку строго по левому краю текста задания */
+  align-items: flex-start;
   width: 100%;
-  margin-bottom: 20px;     /* Добавляет отступ снизу до редактора кода */
+  margin-bottom: 15px;
 }
 
 .hint-btn {
   background: none !important;
   border: none !important;
-  box-shadow: none !important;
   color: var(--duo-blue);
   font-weight: 800;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   padding: 0;
-  margin-top: 10px;        /* Небольшой отступ от текста задания сверху */
   display: flex;
   align-items: center;
   gap: 5px;
-  transition: opacity 0.2s;
-  
-  /* Убираем все системные выделения */
-  outline: none !important;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.hint-btn:focus, .hint-btn:active {
   outline: none !important;
 }
 
-/* Сама плашка с текстом подсказки (если открыта) */
 .hint-bubble {
   margin-top: 10px;
-  margin-bottom: 10px;     /* Чтобы между подсказкой и редактором тоже было место */
   background: #2e3c42;
   color: #ffda6a;
   padding: 12px;
   border-radius: 12px;
   border: 1px dashed rgba(255, 218, 106, 0.5);
   font-size: 0.85rem;
-  width: fit-content;
-  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  animation: fadeIn 0.3s ease-out;
 }
 
-/* Редактор кода */
+/* Редактор и Проверка */
 .code-input {
   width: 100%; min-height: 180px;
   background: #0b1418; color: #72ff72;
   font-family: 'Fira Code', monospace;
   padding: 15px; border-radius: 12px;
   border: 2px solid #37464f; font-size: 16px;
+  box-sizing: border-box;
+  transition: all 0.3s ease;
 }
+
+.code-input.correct-border {
+  border-color: var(--duo-green) !important;
+  box-shadow: 0 0 12px rgba(88, 204, 2, 0.4);
+}
+
+.code-input.wrong-border {
+  border-color: var(--duo-error) !important;
+  box-shadow: 0 0 12px rgba(255, 75, 75, 0.4);
+  animation: shake 0.4s ease-in-out;
+}
+
+.feedback-text {
+  margin: 15px 0;
+  font-weight: 800;
+  text-align: center;
+  font-size: 1.1rem;
+}
+.feedback-text.success { color: var(--duo-green); }
+.feedback-text.error { color: var(--duo-error); }
+
+.action-bar { display: flex; justify-content: center; width: 100%; margin-top: 20px; }
 
 .check-btn {
   width: 100%; padding: 18px;
@@ -267,44 +300,85 @@
   font-weight: 800; cursor: pointer;
 }
 
-.check-btn:active { transform: translateY(4px); border-bottom-width: 0; }
+.check-btn:disabled { background: #37464f; border-bottom-color: #233540; cursor: not-allowed; opacity: 0.7; }
+.check-btn:active:not(:disabled) { transform: translateY(4px); border-bottom-width: 0; }
+.check-btn.next-step { background: var(--duo-blue); border-bottom-color: #1899d6; }
+
+/* --- ПРОФИЛЬ --- */
+.profile-card {
+  background: var(--card-dark);
+  border-radius: 24px;
+  padding: 30px;
+  border: 2px solid #37464f;
+  margin-top: 20px;
+}
+
+.avatar-large {
+  width: 100px; height: 100px;
+  background: var(--duo-blue);
+  border-radius: 50%; font-size: 3rem;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 15px; border: 4px solid #37464f;
+}
+
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 25px; }
+.stat-box { background: #2e3c42; padding: 15px; border-radius: 16px; border: 2px solid #37464f; text-align: center; }
+.stat-box span { display: block; font-size: 1.4rem; font-weight: 800; color: var(--duo-green); }
+.stat-box p { margin: 5px 0 0; font-size: 0.8rem; color: var(--text-gray); }
+
+/* Карточка серии в профиле на всю ширину */
+.stats-grid .stat-box:nth-child(3) {
+  grid-column: span 2;
+  border-color: rgba(255, 150, 0, 0.4);
+}
+.stats-grid .stat-box:nth-child(3) span { color: var(--duo-orange); font-size: 1.8rem; }
+
+/* --- НАВИГАЦИЯ (BOTTOM NAV) --- */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 50%;
+  transform: translateX(-50%); width: 100%; max-width: 500px;
+  height: 75px; background: #233540;
+  border-top: 2px solid #37464f;
+  display: flex; justify-content: space-around; align-items: center; z-index: 999;
+}
+
+.nav-item {
+  background: none; border: none; color: #afbbbf;
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  cursor: pointer; flex: 1; outline: none;
+}
+.nav-item.active { color: var(--duo-blue); }
+.nav-icon { font-size: 1.6rem; }
+
+/* --- СЕРИЯ (STREAK BADGE) --- */
+.streak-badge {
+  display: flex; align-items: center; gap: 4px;
+  background: rgba(255, 150, 0, 0.15); color: var(--duo-orange);
+  padding: 4px 10px; border-radius: 12px;
+  font-weight: 800; font-size: 0.9rem;
+  border: 1px solid rgba(255, 150, 0, 0.3);
+  animation: flamePulse 2s infinite;
+}
 
 /* --- ЗАГРУЗКА --- */
-
 .loading-overlay {
-  position: fixed;
-  inset: 0; /* Растягиваем на весь экран */
+  position: fixed; inset: 0;
   background: rgba(19, 31, 36, 0.95);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  z-index: 10000;
-  backdrop-filter: blur(8px);
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  z-index: 10000; backdrop-filter: blur(8px);
 }
-
-.loading-video {
-  width: 250px;    /* Настрой ширину под себя */
-  height: 250px;   /* Настрой высоту */
-  object-fit: contain; /* Чтобы видео не искажалось */
-  margin-bottom: 20px;
-}
-
-.loading-overlay p {
-  color: var(--text-main);
-  font-weight: 800;
-  font-size: 1.1rem;
-  animation: pulseText 1.5s infinite ease-in-out;
-}
-
+.loading-video { width: 250px; height: 250px; object-fit: contain; }
 
 /* --- АНИМАЦИИ --- */
-.fade-in { animation: fadeIn 0.4s ease-in-out; }
-.active-pulse { animation: levelPulse 2s infinite; }
+@keyframes flamePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); filter: drop-shadow(0 0 5px var(--duo-orange)); }
+}
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
 }
 
 @keyframes levelPulse {
@@ -313,22 +387,10 @@
   100% { box-shadow: 0 8px 0 rgba(0,0,0,0.3), 0 0 0 0 rgba(88, 204, 2, 0); }
 }
 
-@keyframes pulseText {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+.fade-in { animation: fadeIn 0.4s ease-out; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.spinner {
-  width: 50px; height: 50px;
-  border: 5px solid #1e2c33; border-top-color: var(--duo-green);
-  border-radius: 50%; animation: spin 1s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-button:focus, 
-button:active, 
-textarea:focus, 
-.level-node:focus {
-  outline: none !important;
-  -webkit-tap-highlight-color: transparent;
-}
+.active-pulse { animation: levelPulse 2s infinite; }

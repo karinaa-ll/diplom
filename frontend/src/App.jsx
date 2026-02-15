@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import './App.css'
+import AuthModal from './components/AuthModal';
 
 function App() {
-  // Состояния навигации
   const [isLangSelected, setIsLangSelected] = useState(false);
-  const [screen, setScreen] = useState('map'); // 'map' или 'lesson'
+  const [screen, setScreen] = useState('map'); 
   const [currentLanguage, setCurrentLanguage] = useState("");
-  
-  // Игровой прогресс
+  const [activeTab, setActiveTab] = useState('levels');
+  const [streak, setStreak] = useState(0);
+  const [lastLoginDate, setLastLoginDate] = useState(null);
+  const [user, setUser] = useState(null);
   const [unlockedLevel, setUnlockedLevel] = useState(1);
   const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -19,8 +21,56 @@ function App() {
   const [hearts, setHearts] = useState(12); 
   const [showHint, setShowHint] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
+  const [isWrong, setIsWrong] = useState(false); // Состояние для красного бордюра
 
-  // Конфигурация уровней (теперь без жесткой привязки к языку внутри объекта, язык берется из выбора)
+  useEffect(() => {
+    const savedData = localStorage.getItem('duo_coding_profile');
+    if (savedData) {
+      const parsed = JSON.parse(savedData);
+      setUser(parsed.user);
+      setXp(parsed.xp || 0);
+      setUnlockedLevel(parsed.unlockedLevel || 1);
+      checkStreak(parsed.streak || 0, parsed.lastLoginDate);
+    }
+  }, []);
+
+  const checkStreak = (currentStreak, lastDate) => {
+    const today = new Date().toDateString();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toDateString();
+
+    if (lastDate === today) {
+      setStreak(currentStreak);
+      setLastLoginDate(today);
+    } else if (lastDate === yesterdayStr) {
+      setStreak(currentStreak + 1);
+      setLastLoginDate(today);
+    } else {
+      setStreak(1);
+      setLastLoginDate(today);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      const dataToSave = { user, xp, unlockedLevel, streak, lastLoginDate };
+      localStorage.setItem('duo_coding_profile', JSON.stringify(dataToSave));
+    }
+  }, [user, xp, unlockedLevel, streak, lastLoginDate]);
+
+  const handleLogin = (name) => {
+    const newUser = { name, avatar: name[0].toUpperCase() };
+    setUser(newUser);
+  };
+
+  const handleLogout = () => {
+    if (window.confirm("Выйти из аккаунта?")) {
+      setUser(null);
+      setActiveTab('levels');
+    }
+  };
+
   const levels = [
     { id: 1, title: "Основы", icon: "🌱", color: "#58cc02" },
     { id: 2, title: "Переменные", icon: "⚡", color: "#ffc800" },
@@ -29,14 +79,12 @@ function App() {
     { id: 5, title: "Списки", icon: "📦", color: "#ff4b4b" },
   ];
 
-  // 1. Выбор языка
   const selectLanguage = (lang) => {
     setCurrentLanguage(lang);
     setIsLangSelected(true);
     setScreen('map');
   };
 
-  // 2. Старт урока
   const startLesson = (level) => {
     setScreen('lesson');
     fetchTask(currentLanguage, 0);
@@ -50,16 +98,15 @@ function App() {
         language: lang,
         step: stepNum
       });
-      
       if (response.data) {
         setTask(response.data);
         setUserInput(""); 
         setFeedback("");
         setIsCorrect(false);
+        setIsWrong(false);
         setShowHint(false);
       }
     } catch (error) {
-      console.error("ОШИБКА:", error);
       setFeedback("⚠️ Сервер не отвечает.");
     }
     setLoading(false);
@@ -70,7 +117,6 @@ function App() {
     if (nextProgress >= 100) {
       setProgress(100);
       setTimeout(() => {
-        alert(`Уровень пройден! 🎉 +50 XP в копилку ${currentLanguage}`);
         setUnlockedLevel(prev => prev + 1);
         setXp(prev => prev + 50);
         goToMap();
@@ -87,6 +133,7 @@ function App() {
     setHearts(12);
     setFeedback("");
     setIsCorrect(false);
+    setIsWrong(false);
     setScreen('map');
   };
 
@@ -101,141 +148,167 @@ function App() {
       return str.toString().replace(/\s+/g, '').replace(/['"]/g, '"').replace(/;/g, '').replace(/\n/g, '').trim().toLowerCase();
     };
 
-    const userClean = normalize(userInput);
-    const correctClean = normalize(task.expectedSolution);
-
-    if (userClean === correctClean && userClean !== "") {
+    if (normalize(userInput) === normalize(task.expectedSolution)) {
         setFeedback("✅ Правильно!");
         setXp(prev => prev + 10);
         setIsCorrect(true);
+        setIsWrong(false);
     } else {
-      const newHearts = hearts - 1;
-      setHearts(newHearts);
-      setFeedback(newHearts > 0 ? "❌ Ошибка! Попробуй еще раз." : "💔 Жизни закончились!");
+      // Жизни не уходят в минус
+      setHearts(prev => (prev > 0 ? prev - 1 : 0));
+      setFeedback("❌ Ошибка! Попробуй еще раз.");
+      setIsWrong(true);
+      // Убираем красную подсветку через секунду, чтобы можно было "мигнуть"
+      setTimeout(() => setIsWrong(false), 1000);
     }
   };
 
   return (
     <div className="App">
-      {/* ЛОАДЕР С ПАНДОЙ */}
+      {!user && <AuthModal onLogin={handleLogin} />}
+
       {loading && (
         <div className="loading-overlay">
-          <video 
-            autoPlay 
-            loop 
-            muted 
-            playsInline 
-            className="loading-video"
-          >
+          <video autoPlay loop muted playsInline className="loading-video">
             <source src="/load-panda.mp4" type="video/mp4" />
-            Ваш браузер не поддерживает видео.
           </video>
-          <p>Я думаю над задачей...</p>
+          <p>Я думаю...</p>
         </div>
       )}
 
-      {/* ШАГ 0: ВЫБОР ЯЗЫКА */}
       {!isLangSelected ? (
         <div className="welcome-screen fade-in">
           <h1>Что будем учить?</h1>
-          <p>Выберите технологию, чтобы начать приключение</p>
           <div className="lang-grid">
             <button className="lang-card python" onClick={() => selectLanguage('python')}>
-              <div className="lang-icon">🐍</div>
-              <span>Python</span>
+              <div className="lang-icon">🐍</div><span>Python</span>
             </button>
             <button className="lang-card js" onClick={() => selectLanguage('javascript')}>
-              <div className="lang-icon">📜</div>
-              <span>JavaScript</span>
+              <div className="lang-icon">📜</div><span>JavaScript</span>
             </button>
           </div>
         </div>
       ) : (
         <>
-          {/* ШАГ 1: КАРТА УРОВНЕЙ */}
           {screen === 'map' ? (
-            <div className="map-screen fade-in">
-              <header className="map-header">
-                <button className="back-btn-small" onClick={resetToStart}>← Сменить язык</button>
-                <h1>{currentLanguage === 'python' ? 'Python Путь' : 'JS Путь'}</h1>
-                <div className="stat-badge">⭐ {xp} XP</div>
-              </header>
-              
-              <div className="levels-container">
-                {levels.map((lvl) => {
-                  const isCompleted = lvl.id < unlockedLevel; // Пройденные уровни
-                  const isLocked = lvl.id > unlockedLevel;    // Будущие уровни
-                  const isActive = lvl.id === unlockedLevel;  // Текущий
-
-                  return (
-                    <div key={lvl.id} className="level-wrapper">
-                      <button 
-                        className={`level-node 
-                          ${isLocked ? 'locked' : ''} 
-                          ${isCompleted ? 'completed' : ''} 
-                          ${isActive ? 'active-pulse' : ''}`}
-                        style={{ 
-                          backgroundColor: (isLocked || isCompleted) ? '#37464f' : lvl.color 
-                        }}
-                        onClick={() => isActive && startLesson(lvl)}
-                      >
-                        {/* Оставляем иконку всегда, меняем только замок */}
-                        {isLocked ? "🔒" : lvl.icon}
-                        
-                        <div className="level-tooltip">
-                          {isCompleted ? "Пройдено" : isLocked ? "Закрыто" : lvl.title}
-                        </div>
-                      </button>
+            <div className="map-wrapper">
+              <main className="main-content-area">
+                {activeTab === 'levels' && (
+                  <div className="map-screen fade-in">
+                    <header className="map-header">
+                      <div className="user-profile-header">
+                        <div className="avatar-small">{user?.avatar}</div>
+                        <span className="user-name-text">{user?.name}</span>
+                        <div className="streak-badge">🔥 {streak}</div>
+                      </div>
+                      <div className="stat-badge">⭐ {xp} XP</div>
+                    </header>
+                    <div className="levels-container">
+                      {levels.map((lvl) => {
+                        const isCompleted = lvl.id < unlockedLevel;
+                        const isLocked = lvl.id > unlockedLevel;
+                        const isActive = lvl.id === unlockedLevel;
+                        return (
+                          <div key={lvl.id} className="level-wrapper">
+                            <button 
+                              className={`level-node ${isLocked ? 'locked' : ''} ${isCompleted ? 'completed' : ''} ${isActive ? 'active-pulse' : ''}`}
+                              style={{ backgroundColor: (isLocked || isCompleted) ? '#37464f' : lvl.color }}
+                              onClick={() => isActive && startLesson(lvl)}
+                            >
+                              {isLocked ? "🔒" : lvl.icon}
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                )}
+
+                {activeTab === 'profile' && (
+                  <div className="profile-screen fade-in">
+                    <h2>Мой профиль</h2>
+                    <div className="profile-card">
+                      <div className="avatar-large">{user?.avatar}</div>
+                      <h3>{user?.name}</h3>
+                      <div className="stats-grid">
+                        <div className="stat-box"><span>{xp}</span><p>Опыт</p></div>
+                        <div className="stat-box"><span>{unlockedLevel}</span><p>Уровень</p></div>
+                        <div className="stat-box"><span>{streak}</span><p>Дней в ударном режиме</p></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'settings' && (
+                  <div className="settings-screen fade-in">
+                    <h2>Настройки</h2>
+                    <div className="settings-list">
+                      <button className="settings-item" onClick={resetToStart}>🐍 Сменить язык</button>
+                      <button className="settings-item logout" onClick={handleLogout}>🚪 Выйти из аккаунта</button>
+                    </div>
+                  </div>
+                )}
+              </main>
+
+              <nav className="bottom-nav">
+                <button className={`nav-item ${activeTab === 'levels' ? 'active' : ''}`} onClick={() => setActiveTab('levels')}>
+                  <span className="nav-icon">🗺️</span><span>Главная</span>
+                </button>
+                <button className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}>
+                  <span className="nav-icon">👤</span><span>Профиль</span>
+                </button>
+                <button className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
+                  <span className="nav-icon">⚙️</span><span>Настройки</span>
+                </button>
+              </nav>
             </div>
           ) : (
-            /* ШАГ 2: ЭКРАН УРОКА */
             <div className="lesson-screen fade-in">
               <header className="app-header">
                 <button className="back-home" onClick={goToMap}>✕</button>
                 <div className="progress-container">
                   <div className="progress-bar" style={{ width: `${progress}%` }}></div>
                 </div>
-                <div className="stats-right">
-                  <span className={hearts < 3 ? "low-hearts" : ""}>❤️ {hearts}</span>
-                </div>
+                <div className="stats-right">❤️ {hearts}</div>
               </header>
-
               <main className="content">
                 <div className="task-view">
                   <h2 className="task-title">{task?.title}</h2>
                   <p className="task-desc">{task?.description}</p>
                   
+                  {/* КНОПКА ПОДСКАЗКИ И ПЛАШКА */}
                   <div className="task-actions-top">
-                     <button className="hint-btn" onClick={() => setShowHint(!showHint)}>
-                       💡 {showHint ? "Скрыть подсказку" : "Нужна подсказка?"}
-                     </button>
-                     {showHint && <div className="hint-bubble">{task?.hint}</div>}
+                    <button className="hint-btn" onClick={() => setShowHint(!showHint)}>
+                      💡 {showHint ? "Скрыть подсказку" : "Нужна подсказка?"}
+                    </button>
+                    {showHint && <div className="hint-bubble fade-in">{task?.hint || "Попробуй внимательно прочитать задание!"}</div>}
                   </div>
 
-                  <div className="editor-wrapper">
-                    <textarea
-                      className="code-input"
-                      autoFocus
-                      value={userInput}
-                      onChange={(e) => !isCorrect && hearts > 0 && setUserInput(e.target.value)}
-                      disabled={hearts <= 0 || isCorrect}
-                      placeholder="Напиши код здесь..."
-                    />
-                  </div>
+                  <textarea
+                    className={`code-input ${isCorrect ? 'correct-border' : ''} ${isWrong ? 'wrong-border' : ''}`}
+                    value={userInput}
+                    onChange={(e) => {
+                        if(!isCorrect) {
+                            setUserInput(e.target.value);
+                            setIsWrong(false); // Убираем красный при вводе
+                        }
+                    }}
+                    placeholder="Напиши код здесь..."
+                    disabled={hearts <= 0 || isCorrect}
+                  />
+                  
+                  {feedback && <p className={`feedback-text ${isCorrect ? 'success' : 'error'}`}>{feedback}</p>}
 
-                  <div className="action-bar">
-                    <p className={`feedback-msg ${isCorrect ? "success" : "error"}`}>{feedback}</p>
-                    {hearts <= 0 ? (
-                      <button className="check-btn restart" onClick={goToMap}>ВЕРНУТЬСЯ НА КАРТУ</button>
-                    ) : isCorrect ? (
+                  <div className="action-bar" style={{ textAlign: 'center', marginTop: '20px' }}>
+                    {isCorrect ? (
                       <button className="check-btn next-step" onClick={handleNext}>ДАЛЕЕ</button>
                     ) : (
-                      <button className="check-btn" onClick={checkAnswer} disabled={userInput.length === 0}>
-                        ПРОВЕРИТЬ
+                      <button 
+                        className="check-btn" 
+                        onClick={checkAnswer} 
+                        disabled={userInput.length === 0 || hearts <= 0}
+                      >
+                        {hearts <= 0 ? "ЖИЗНИ ЗАКОНЧИЛИСЬ" : "ПРОВЕРИТЬ"}
                       </button>
                     )}
                   </div>
